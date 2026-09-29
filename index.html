@@ -168,6 +168,29 @@
     #successView .id-box { display: inline-block; margin: 16px auto 0; background: var(--primary-light); color: var(--primary-dark); font-weight: 700; padding: 8px 16px; border-radius: 10px; font-size: 14px; }
     #successView .btn-primary { max-width: 280px; margin: 24px auto 0; flex: none; }
     .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+
+    /* ===== ID menonjol di layar sukses ===== */
+    .id-note { margin: 18px auto 0; max-width: 420px; background: var(--accent-light); border: 1px dashed var(--accent); border-radius: 12px; padding: 16px; }
+    .id-note-label { font-size: 12px; font-weight: 700; color: var(--primary-dark); margin-bottom: 8px; }
+    .id-big { font-size: 18px; font-weight: 800; letter-spacing: .3px; color: var(--primary); background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; word-break: break-all; }
+    .btn-copy { margin-top: 10px; border: none; cursor: pointer; font: inherit; font-weight: 600; font-size: 13px; background: var(--primary); color: #fff; border-radius: 8px; padding: 8px 16px; }
+    .btn-copy:hover { background: var(--primary-dark); }
+
+    /* ===== Cek Status ===== */
+    .cek-status-card { margin-top: 18px; }
+    .cek-row { display: flex; gap: 10px; align-items: stretch; }
+    .cek-row input { flex: 1; }
+    @media (max-width: 520px) { .cek-row { flex-direction: column; } .cek-row .btn { max-width: none !important; } }
+    .cek-hasil { margin-top: 16px; border-radius: 12px; padding: 16px; font-size: 14px; border: 1px solid var(--border); }
+    .cek-hasil .st-label { font-size: 12px; color: var(--muted); }
+    .cek-hasil .st-badge { display: inline-block; font-weight: 700; padding: 6px 14px; border-radius: 999px; margin: 6px 0; font-size: 14px; }
+    .cek-hasil .st-nama { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+    .cek-hasil .st-kk { margin-top: 8px; font-weight: 700; color: var(--primary-dark); }
+    .st-menunggu { background: #fff4d6; color: #8a6d1a; }
+    .st-lingkungan { background: var(--primary-light); color: var(--primary-dark); }
+    .st-stasi { background: var(--accent-light); color: #047857; }
+    .st-tolak { background: var(--danger-light); color: var(--danger); }
+    .st-notfound { background: #f1f5f9; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -289,9 +312,24 @@
       </div>
       <h2>Terima Kasih!</h2>
       <p>Data Kartu Keluarga Anda berhasil dikirim dan tersimpan.</p>
-      <div class="id-box" id="successId"></div>
+      <div class="id-note">
+        <div class="id-note-label">📌 SIMPAN ID INI untuk cek status pengajuan Anda</div>
+        <div class="id-big" id="successId"></div>
+        <button type="button" class="btn-copy" id="btnCopyId">📋 Salin ID</button>
+      </div>
       <p id="emailNote" style="margin-top:14px;font-size:13px;"></p>
       <button type="button" class="btn btn-primary" onclick="location.reload()">Isi Formulir Baru</button>
+    </div>
+
+    <!-- ===== CEK STATUS PENGAJUAN ===== -->
+    <div class="card cek-status-card">
+      <div class="section-title"><span class="badge">🔎</span> Cek Status Pengajuan</div>
+      <div class="section-sub">Masukkan <b>ID Pengajuan</b> Anda untuk melihat status persetujuan.</div>
+      <div class="cek-row">
+        <input type="text" id="cekId" placeholder="Contoh: KK-20260927-153000-123" autocomplete="off">
+        <button type="button" class="btn btn-primary" id="btnCekStatus" style="flex:0 0 auto;max-width:160px">Cek Status</button>
+      </div>
+      <div id="cekHasil" class="cek-hasil" style="display:none;"></div>
     </div>
 
     <div class="footer">© Gereja Stasi Santo Laurensius Parung Panjang</div>
@@ -300,7 +338,7 @@
   <script>
     // ===== Opsi dropdown (fallback; ditimpa oleh getOptions dari server) =====
     // ====== KONFIGURASI (WAJIB DIISI) ======
-    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwGPejdJ8zmLLGlfATZ4ohSnTgZUPamQzmIstrZVV7tJb9AlmfGFnL1IcnqhUzwbLGz/exec';
+    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBK8ZQ2acdLOqpukUtkkWakCXaPD3rO7-JzJU21eSelAWg4NSeftnO3K9_Uo7fuz2u/exec';
     var DEVELOPER = 'Marcus Dedy';
 
     var OPTIONS = {
@@ -594,7 +632,6 @@
       var payload = { kk: collectKK(), anggota: collectAnggota(), salinanEmail: salinanEmail };
       var btn = document.getElementById('btnSubmit');
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Mengirim...'; status.textContent='';
-      // Kirim ke Apps Script via fetch (text/plain agar tanpa preflight CORS).
       if (APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('http') === 0) {
         fetch(APPS_SCRIPT_URL, {
           method: 'POST',
@@ -660,9 +697,63 @@
       document.getElementById('grid-kepala').addEventListener('change', function(e){ if(e.target.dataset.name==='statusPerkawinan') buildStepper(); });
       // rebuild stepper saat agama berubah (langkah Sakramen hanya untuk Katolik)
       document.getElementById('grid-biodata').addEventListener('change', function(e){ if(e.target.dataset.name==='agama') buildStepper(); });
+      // Tombol salin ID di layar sukses.
+      var btnCopy = document.getElementById('btnCopyId');
+      if (btnCopy) btnCopy.addEventListener('click', function(){
+        var teks = (document.getElementById('successId').textContent || '').replace(/^ID Pengajuan:\s*/, '').trim();
+        if (navigator.clipboard) navigator.clipboard.writeText(teks);
+        btnCopy.textContent = '✓ Tersalin';
+        setTimeout(function(){ btnCopy.textContent = '📋 Salin ID'; }, 1500);
+      });
+      // Tombol cek status.
+      var btnCek = document.getElementById('btnCekStatus');
+      if (btnCek) btnCek.addEventListener('click', cekStatusPengajuan);
       showStep(1);
     }
-    // Ambil OPTIONS terbaru dari Apps Script (opsional). Jika gagal, pakai fallback lokal.
+
+    // ===== Cek Status Pengajuan =====
+    function cekStatusPengajuan(){
+      var id = (document.getElementById('cekId').value || '').trim();
+      var box = document.getElementById('cekHasil');
+      if (!id) { tampilStatus({ found:false, message:'Masukkan ID Pengajuan terlebih dahulu.' }); return; }
+      box.style.display = 'block';
+      box.className = 'cek-hasil st-notfound';
+      box.innerHTML = 'Memeriksa...';
+      var handle = function(res){ tampilStatus(res); };
+      if (window.google && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(handle).withFailureHandler(function(err){ tampilStatus({found:false, message:'Gagal memeriksa. Coba lagi.'}); }).cekStatus(id);
+      } else if (typeof APPS_SCRIPT_URL !== 'undefined' && APPS_SCRIPT_URL.indexOf('http') === 0) {
+        fetch(APPS_SCRIPT_URL + '?action=status&id=' + encodeURIComponent(id))
+          .then(function(r){ return r.json(); }).then(handle)
+          .catch(function(){ tampilStatus({found:false, message:'Gagal memeriksa. Coba lagi.'}); });
+      } else {
+        // Pratinjau lokal.
+        setTimeout(function(){ tampilStatus({ found:true, nama:'(Pratinjau)', status:'Menunggu', nomorKK:'' }); }, 500);
+      }
+    }
+    function tampilStatus(res){
+      var box = document.getElementById('cekHasil');
+      box.style.display = 'block';
+      if (!res || !res.found) {
+        box.className = 'cek-hasil st-notfound';
+        box.innerHTML = (res && res.message) ? res.message : 'Pengajuan tidak ditemukan. Periksa kembali ID Anda.';
+        return;
+      }
+      var st = res.status || 'Menunggu';
+      var cls = 'st-menunggu', teks = '⏳ Menunggu persetujuan lingkungan';
+      if (st === 'Disetujui Lingkungan') { cls = 'st-lingkungan'; teks = '✅ Disetujui Lingkungan'; }
+      else if (st === 'Disetujui Stasi') { cls = 'st-stasi'; teks = '🎉 Disetujui Stasi'; }
+      else if (st === 'Ditolak') { cls = 'st-tolak'; teks = '✕ Ditolak'; }
+      var html = '';
+      html += '<div class="st-nama">' + escapeHtml(res.nama || '-') + '</div>';
+      html += '<div class="st-label">Status pengajuan:</div>';
+      html += '<div class="st-badge ' + cls + '">' + teks + '</div>';
+      if (st === 'Disetujui Stasi' && res.nomorKK) {
+        html += '<div class="st-kk">Nomor KK: ' + escapeHtml(res.nomorKK) + '</div>';
+      }
+      box.className = 'cek-hasil ' + cls;
+      box.innerHTML = html;
+    }
     if (APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('http') === 0) {
       fetch(APPS_SCRIPT_URL + '?action=options')
         .then(function(r){ return r.json(); })
